@@ -1,0 +1,4 @@
+08.06.2024
+Utworzenie podstawowej wersji gry bez implementacji zapisu. Udało mi się utworzyć settings, dzięki którym możemy manipulować 
+tym z ilu pól ma się składać funkcja oraz jakie wartości kafelków mają być wyświetlane. Próbowałem zrobic jeszcze mechanizm 
+który czyścił by konsolę jednak bez skutków. 
