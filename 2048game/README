@@ -2,3 +2,8 @@
 Utworzenie podstawowej wersji gry bez implementacji zapisu. Udało mi się utworzyć settings, dzięki którym możemy manipulować 
 tym z ilu pól ma się składać funkcja oraz jakie wartości kafelków mają być wyświetlane. Próbowałem zrobic jeszcze mechanizm 
 który czyścił by konsolę jednak bez skutków. 
+
+08.06.2024 - 11.06.2024
+Duza zmiana kodu ze względu na implementacje leaderboard'a. Nie ukrywam na tym etapie musiałem wspomagać się trochę ChatemGPT.
+Użytkownik ma możliwość zrestartowania gry po jej zakończeniu. Automatyczne zapisywanie wyników do leaderboarda. Jestem 
+zadowolony z kodu oraz implementacji.

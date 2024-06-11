@@ -1,17 +1,23 @@
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
 
+// Klasa Settings przechowuje ustawienia gry
 class Settings {
-    private static int size;
-    private static int fieldValue1;
-    private static int fieldValue2;
+    private static int size; // Rozmiar planszy
+    private static int fieldValue1; // Pierwsza wartość startowa
+    private static int fieldValue2; // Druga wartość startowa
+    private static String playerName; // Nazwa gracza
 
-    public Settings(int size, int fieldValue1, int fieldValue2) {
+    public Settings(int size, int fieldValue1, int fieldValue2, String playerName) {
         Settings.size = size;
         Settings.fieldValue1 = fieldValue1;
         Settings.fieldValue2 = fieldValue2;
+        Settings.playerName = playerName;
     }
 
+    // Metody statyczne do pobierania ustawień gry
     public static int getSize() {
         return size;
     }
@@ -23,10 +29,57 @@ class Settings {
     public static int getFieldValue2() {
         return fieldValue2;
     }
+
+    public static String getPlayerName() {
+        return playerName;
+    }
 }
 
-class Game2048{
+// Klasa LeaderBoard przechowuje i wyświetla wyniki graczy
+class LeaderBoard {
+    private final List<LeaderBoardEntry> entries;
 
+    public LeaderBoard() {
+        entries = new ArrayList<>();
+    }
+
+    // Dodaje wpis do tablicy wyników
+    public void addEntry(String name, int score) {
+        entries.add(new LeaderBoardEntry(name, score));
+        // Sortowanie wpisów malejąco według wyniku
+        entries.sort((e1, e2) -> Integer.compare(e2.getScore(), e1.getScore()));
+    }
+
+    // Wyświetla tablicę wyników
+    public void display() {
+        System.out.println("=== Leaderboard ===");
+        for (LeaderBoardEntry entry : entries) {
+            System.out.printf("%s: %d%n", entry.getName(), entry.getScore());
+        }
+    }
+}
+
+// Klasa pomocnicza do przechowywania wpisów tablicy wyników
+class LeaderBoardEntry {
+    private final String name;
+    private final int score;
+
+    public LeaderBoardEntry(String name, int score) {
+        this.name = name;
+        this.score = score;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public int getScore() {
+        return score;
+    }
+}
+
+// Klasa główna gry 2048
+class Game2048 {
     public static final char MOVE_LEFT = 'A';
     public static final char MOVE_RIGHT = 'D';
     public static final char MOVE_UP = 'W';
@@ -36,82 +89,79 @@ class Game2048{
     private final Random random;
     private final Scanner scanner;
     private int score;
+    private final LeaderBoard leaderBoard;
+    private String playerName;
 
-    public Game2048(Settings gameSettings) {
+    // Konstruktor inicjalizujący grę
+    public Game2048(Settings gameSettings, LeaderBoard leaderBoard) {
         int size = gameSettings.getSize();
         board = new int[size][size];
         random = new Random();
         scanner = new Scanner(System.in);
         score = 0;
+        this.leaderBoard = leaderBoard;
+        this.playerName = gameSettings.getPlayerName();
     }
 
+    // Wyświetla aktualny stan planszy
     public void showBoard() {
-
-        int newSize = Settings.getSize();
-        // górny separator
-        for (int i = 0; i < newSize; i++) {
+        int size = Settings.getSize();
+        for (int i = 0; i < size; i++) {
             System.out.print("-------");
         }
         System.out.println();
 
-        // rząd
-        for (int i = 0; i < newSize; i++) {
-            // puste miejsce przed rzędem
+        for (int i = 0; i < size; i++) {
             System.out.print("|");
-            for (int j = 0; j < newSize; j++) {
+            for (int j = 0; j < size; j++) {
                 System.out.print("      |");
             }
             System.out.println();
 
-            // linia przerywająca
             System.out.print("|");
-            for (int j = 0; j < newSize; j++) {
+            for (int j = 0; j < size; j++) {
                 if (board[i][j] == 0) {
                     System.out.printf("  %-3s |", "");
                 } else {
-                    System.out.printf("  %-3s |", "" + board[i][j]);
+                    System.out.printf("  %-3d |", board[i][j]);
                 }
             }
             System.out.println();
 
-            // puste miejsce po rzędzie
             System.out.print("|");
-            for (int j = 0; j < newSize; j++) {
+            for (int j = 0; j < size; j++) {
                 System.out.print("      |");
             }
             System.out.println();
 
-
-            // dolny separator
-            for (int j = 0; j < newSize; j++) {
+            for (int j = 0; j < size; j++) {
                 System.out.print("-------");
             }
             System.out.println();
         }
-        //Drukowanie wyniku
         System.out.println("Score: " + score);
         System.out.println();
     }
 
+    // Dodaje losową cyfrę do planszy
     public void addRandomDigit(int digit) {
-        // losowe współrzędne
-        int i = random.nextInt(4);
-        int j = random.nextInt(4);
+        int size = Settings.getSize();
+        int i = random.nextInt(size);
+        int j = random.nextInt(size);
 
-        // generujemy tak długo jak miejsce na planszy jest zajęte
         while (board[i][j] != 0) {
-            i = random.nextInt(4);
-            j = random.nextInt(4);
+            i = random.nextInt(size);
+            j = random.nextInt(size);
         }
 
-        // zapisujemy lokalizacje
         board[i][j] = digit;
     }
 
+    // Szuka określonej wartości na planszy
     public boolean searchOnBoard(int x) {
-        // szukamy wartości x na planszy
-        for (int i = 0; i < 4; i++) {
-            for (int j = 0; j < 4; j++) {
+        int size = Settings.getSize();
+        for (int i = 0; i < size; i++) {
+            for (int j = 0; j < size; j++) {
                 if (board[i][j] == x) {
                     return true;
                 }
@@ -120,57 +170,47 @@ class Game2048{
         return false;
     }
 
+    // Sprawdza, czy gra została wygrana
     public boolean gameWon() {
-        // sprawdzamy, czy jest 2048 na planszy
         return searchOnBoard(2048);
     }
 
+    // Sprawdza, czy użytkownik może wykonać ruch
     public boolean userCanMakeAMove() {
-        // sprawdzamy plansze
         int size = Settings.getSize();
         for (int i = 0; i < size - 1; i++) {
             for (int j = 0; j < size - 1; j++) {
-                // jeśli dwie sąsiednie lokalizacje mają tę samą wartość, zwróć wartość true
-                if (board[i][j] == board[i][j + 1] ||
-                        board[i][j] == board[i + 1][j]) {
+                if (board[i][j] == board[i][j + 1] || board[i][j] == board[i + 1][j]) {
                     return true;
                 }
             }
         }
-        // to samo ale w ostatnim rzędzie
         for (int j = 0; j < size - 1; j++) {
             if (board[size - 1][j] == board[size - 1][j + 1]) {
                 return true;
             }
         }
-
-        // w ostatniej kolumnie
         for (int i = 0; i < size - 1; i++) {
             if (board[i][size - 1] == board[i + 1][size - 1]) {
                 return true;
             }
         }
-
         return false;
     }
 
+    // Sprawdza, czy gra się skończyła
     public boolean isGameOver() {
-        // jest płytka 2048
         if (gameWon()) {
             return true;
         }
-
-        // jest puste miejsce na planszy z wartością 0
         if (searchOnBoard(0)) {
             return false;
         }
-
-        // jezeli user moze się ruszyć to nie koniec gry
         return !userCanMakeAMove();
     }
 
+    // Pobiera ruch użytkownika
     public char getUserMove() {
-        // pokaz wszytskie mozliwe ruchy
         System.out.println("Wybierz ruch: ");
         System.out.println("W/w: Do góry");
         System.out.println("S/s: W dół");
@@ -178,7 +218,6 @@ class Game2048{
         System.out.println("D/d: Prawo");
         System.out.print("Podaj ruch: ");
 
-        // czytanie inputow
         String moveInput = scanner.nextLine();
         if (moveInput.equalsIgnoreCase("a") ||
                 moveInput.equalsIgnoreCase("w") ||
@@ -189,17 +228,13 @@ class Game2048{
 
         System.out.println("Nieprawidłowy ruch!");
         System.out.println();
-
-        // drukuj plansze
         showBoard();
-
-        // i teraz wczytaj ruch usera
         return getUserMove();
     }
 
+    // Przetwarza ruch w lewo
     public int[] processLeftMove(int[] row) {
         int size = Settings.getSize();
-        // kopiowanie wartości różnych od 0
         int[] newRow = new int[size];
         int j = 0;
         for (int i = 0; i < size; i++) {
@@ -208,162 +243,169 @@ class Game2048{
             }
         }
 
-        // łączenie wartości w nowym rzędzie
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < size - 1; i++) {
             if (newRow[i] != 0 && newRow[i] == newRow[i + 1]) {
-                newRow[i] = 2 * newRow[i]; // a)
-                score += newRow[i]; // zwiększenie wyniku
-                // kopiowanie pozostałych wartości  // b)
-                for (j = i + 1; j < 3; j++) {
+                newRow[i] *= 2;
+                score += newRow[i];
+                for (j = i + 1; j < size - 1; j++) {
                     newRow[j] = newRow[j + 1];
                 }
-                // c) ustawienie ostatniej lokalizacji tego rzędu na 0
-                newRow[3] = 0;
+                newRow[size - 1] = 0;
             }
         }
         return newRow;
     }
 
+    // Odwraca tablicę
     public int[] reverseArray(int[] arr) {
-        // odwrócenie tablicy
         int[] reverseArr = new int[arr.length];
-        for (int i = arr.length - 1; i >= 0; i--) {
+        for (int i = 0; i < arr.length; i++) {
             reverseArr[i] = arr[arr.length - i - 1];
         }
         return reverseArr;
     }
 
+    // Przetwarza ruch w prawo
     public int[] processRightMove(int[] row) {
-        // kopiowanie wszystkich wartości różnych od 0
         int size = Settings.getSize();
-        int[] newRow = new int[size];
-        int j = 0;
-        for (int i = 0; i < size; i++) {
-            if (row[i] != 0) {
-                newRow[j++] = row[i];
-            }
-        }
-
-        // odwrócenie rzędu
-        newRow = reverseArray(newRow);
-
-        // przetworzenie ruchu w lewo
+        int[] newRow = reverseArray(row);
         newRow = processLeftMove(newRow);
-
-        // odwrócenie rzędu
         return reverseArray(newRow);
     }
 
+    // Przetwarza ruch gracza
     public void processMove(char move) {
         int size = Settings.getSize();
         switch (move) {
-            case MOVE_LEFT: {
-                // dla każdego rzędu
+            case MOVE_LEFT:
                 for (int i = 0; i < size; i++) {
-                    // uzyskaj nowy rząd
                     int[] newRow = processLeftMove(board[i]);
-                    // skopiuj wartości z nowego rzędu do rzędu
                     System.arraycopy(newRow, 0, board[i], 0, size);
                 }
-            }
-            break;
-            case MOVE_RIGHT: {
-                // dla każdego rzędu
+                break;
+            case MOVE_RIGHT:
                 for (int i = 0; i < size; i++) {
-                    // uzyskaj nowy rząd
                     int[] newRow = processRightMove(board[i]);
-                    // skopiuj wartości z nowego rzędu do rzędu
                     System.arraycopy(newRow, 0, board[i], 0, size);
                 }
-            }
-            break;
-            case MOVE_UP: {
-                // dla każdej kolumny
+                break;
+            case MOVE_UP:
                 for (int j = 0; j < size; j++) {
-                    // utwórz rząd z wartości kolumny
                     int[] row = new int[size];
                     for (int i = 0; i < size; i++) {
                         row[i] = board[i][j];
                     }
-
-                    // przetwórz ruch w lewo na tym rzędzie
                     int[] newRow = processLeftMove(row);
-
-                    // skopiuj wartości z powrotem do kolumny
                     for (int i = 0; i < size; i++) {
                         board[i][j] = newRow[i];
                     }
                 }
-            }
-            break;
-            case MOVE_DOWN: {
-                // dla każdej kolumny
+                break;
+            case MOVE_DOWN:
                 for (int j = 0; j < size; j++) {
-                    // utwórz rząd z wartości kolumny
                     int[] row = new int[size];
                     for (int i = 0; i < size; i++) {
                         row[i] = board[i][j];
                     }
-
-                    // przetwórz ruch w prawo na tym rzędzie
                     int[] newRow = processRightMove(row);
-
-                    // skopiuj wartości z powrotem do kolumny
                     for (int i = 0; i < size; i++) {
                         board[i][j] = newRow[i];
                     }
                 }
-            }
-            break;
+                break;
         }
     }
 
+    // Główna metoda gry
     public void play() {
-        // ustaw planszę - dodaj losowe kafelki
-
         int value1 = Settings.getFieldValue1();
         int value2 = Settings.getFieldValue2();
         addRandomDigit(value1);
         addRandomDigit(value2);
 
-        // dopóki gra się nie skończy
         while (!isGameOver()) {
-            // pokaż planszę
             showBoard();
-
-            // poproś użytkownika o ruch
             char move = getUserMove();
-
-            // przetwórz ruch
             processMove(move);
-
-            // dodaj losowe kafelki
-            int r = random.nextInt(100);
-            if (r % 2 == 0) {
+            if (random.nextInt(100) % 2 == 0) {
                 addRandomDigit(value1);
             } else {
                 addRandomDigit(value2);
             }
         }
 
+        showBoard();
         if (gameWon()) {
             System.out.println("WYGRAŁEŚ!");
         } else {
             System.out.println("PRZEGRAŁEŚ!");
         }
+
+        // Dodanie wyniku do tablicy wyników i jej wyświetlenie
+        leaderBoard.addEntry(playerName, score);
+        leaderBoard.display();
+
+        System.out.println("Czy chcesz ponownie rozpocząć grę z nowym użytkownikiem: Yes/No");
+        if (scanner.nextLine().equalsIgnoreCase("Yes")) {
+            resetGame();
+            Settings newSettings = getNewUserSettings();
+            playerName = newSettings.getPlayerName();
+            play();
+        }
     }
 
-    public static void main(String[] args) {
+    // Resetuje grę do stanu początkowego
+    private void resetGame() {
+        int size = Settings.getSize();
+        for (int i = 0; i < size; i++) {
+            for (int j = 0; j < size; j++) {
+                board[i][j] = 0;
+            }
+        }
+        score = 0;
+    }
+
+    // Pobiera nowe ustawienia od użytkownika
+    private Settings getNewUserSettings() {
+        System.out.println("Podaj nazwę użytkownika: ");
+        String newUserName = scanner.nextLine();
         System.out.println("Podaj wielkość planszy: ");
-        int size = new Scanner(System.in).nextInt();
+        int size = scanner.nextInt();
+        while (size <= 1) {
+            System.out.println("Rozmiar planszy musi być większy niż 1. Podaj ponownie: ");
+            size = scanner.nextInt();
+        }
         System.out.println("Podaj wartość nr1: ");
-        int value1 = new Scanner(System.in).nextInt();
+        int value1 = scanner.nextInt();
         System.out.println("Podaj wartość nr2: ");
-        int value2 = new Scanner(System.in).nextInt();
+        int value2 = scanner.nextInt();
 
-        Settings gameSettings = new Settings(size, value1, value2);
-        Game2048 gameOf2048 = new Game2048(gameSettings);
+        scanner.nextLine(); // Konsumuje pozostały znak nowej linii
 
+        return new Settings(size, value1, value2, newUserName);
+    }
+
+    // Metoda główna programu
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        System.out.println("Podaj nazwę użytkownika: ");
+        String username = sc.nextLine();
+        System.out.println("Podaj wielkość planszy: ");
+        int size = sc.nextInt();
+        while (size <= 1) {
+            System.out.println("Rozmiar planszy musi być większy niż 1. Podaj ponownie: ");
+            size = sc.nextInt();
+        }
+        System.out.println("Podaj wartość nr1: ");
+        int value1 = sc.nextInt();
+        System.out.println("Podaj wartość nr2: ");
+        int value2 = sc.nextInt();
+
+        sc.nextLine(); // Konsumuje pozostały znak nowej linii
+
+        Settings gameSettings = new Settings(size, value1, value2, username);
+        LeaderBoard leaderBoard = new LeaderBoard();
+        Game2048 gameOf2048 = new Game2048(gameSettings, leaderBoard);
         gameOf2048.play();
     }
 }
