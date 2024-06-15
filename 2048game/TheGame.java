@@ -2,6 +2,34 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
+import java.io.Serializable;
+import java.io.*;
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.Clip;
+
+
+
+class Player {
+    void playMusic(String musicLoc){
+        try {
+            File musicPath = new File(musicLoc);
+            if(musicPath.exists()){
+                AudioInputStream audioInput = AudioSystem.getAudioInputStream(musicPath);
+                Clip clip = AudioSystem.getClip();
+                clip.open(audioInput);
+                clip.loop(Clip.LOOP_CONTINUOUSLY);
+                clip.start();
+            }
+            else{
+                System.out.println("Nie znaleziono pliku muzycznego");
+            }
+        }
+        catch (Exception ex){
+            ex.printStackTrace();
+        }
+    }
+}
 
 // Klasa Settings przechowuje ustawienia gry
 class Settings {
@@ -35,9 +63,11 @@ class Settings {
     }
 }
 
+
+
 // Klasa LeaderBoard przechowuje i wyświetla wyniki graczy
 class LeaderBoard {
-    private final List<LeaderBoardEntry> entries;
+     final List<LeaderBoardEntry> entries;
 
     public LeaderBoard() {
         entries = new ArrayList<>();
@@ -59,6 +89,8 @@ class LeaderBoard {
     }
 }
 
+
+
 // Klasa pomocnicza do przechowywania wpisów tablicy wyników
 class LeaderBoardEntry {
     private final String name;
@@ -78,8 +110,10 @@ class LeaderBoardEntry {
     }
 }
 
+
+
 // Klasa główna gry 2048
-class Game2048 {
+class Game2048 implements Serializable{
     public static final char MOVE_LEFT = 'A';
     public static final char MOVE_RIGHT = 'D';
     public static final char MOVE_UP = 'W';
@@ -92,15 +126,44 @@ class Game2048 {
     private final LeaderBoard leaderBoard;
     private String playerName;
 
+    // Zapisz grę do pliku
+    public void saveGame(String filename) {
+        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(filename))) {
+            out.writeObject(board);
+            out.writeInt(score);
+            out.writeObject(playerName);
+            System.out.println("Gra zapisana pomyślnie.");
+        } catch (IOException e) {
+            System.out.println("Error: " + e.getMessage());
+        }
+    }
+
+    // Załaduj grę
+    public void loadGame(String filename) {
+        try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(filename))) {
+            int[][] loadedBoard = (int[][]) in.readObject();
+            int loadedScore = in.readInt();
+            String loadedPlayerName = (String) in.readObject();
+
+            System.arraycopy(loadedBoard, 0, board, 0, loadedBoard.length);
+            score = loadedScore;
+            playerName = loadedPlayerName;
+
+            System.out.println("Gra załadowana pomyślnie.");
+        } catch (IOException | ClassNotFoundException e) {
+            System.out.println("Error: " + e.getMessage());
+        }
+    }
+
     // Konstruktor inicjalizujący grę
     public Game2048(Settings gameSettings, LeaderBoard leaderBoard) {
-        int size = gameSettings.getSize();
+        int size = Settings.getSize();
         board = new int[size][size];
         random = new Random();
         scanner = new Scanner(System.in);
         score = 0;
         this.leaderBoard = leaderBoard;
-        this.playerName = gameSettings.getPlayerName();
+        this.playerName = Settings.getPlayerName();
     }
 
     // Wyświetla aktualny stan planszy
@@ -211,6 +274,8 @@ class Game2048 {
 
     // Pobiera ruch użytkownika
     public char getUserMove() {
+        System.out.println("Naciśnij B aby zapisać grę do pliku.");
+        System.out.println("Naciśnij X aby wyjść.");
         System.out.println("Wybierz ruch: ");
         System.out.println("W/w: Do góry");
         System.out.println("S/s: W dół");
@@ -224,9 +289,16 @@ class Game2048 {
                 moveInput.equalsIgnoreCase("s") ||
                 moveInput.equalsIgnoreCase("d")) {
             return moveInput.toUpperCase().charAt(0);
+        } else if (moveInput.equalsIgnoreCase("b")) {
+            System.out.print("Podaj nazwe pliku: ");
+            String filename = scanner.nextLine();
+            saveGame(filename);
+        } else if (moveInput.equalsIgnoreCase("x")) {
+            System.exit(0);
+        } else {
+            System.out.println("Nieprawidłowy ruch!");
         }
 
-        System.out.println("Nieprawidłowy ruch!");
         System.out.println();
         showBoard();
         return getUserMove();
@@ -237,12 +309,15 @@ class Game2048 {
         int size = Settings.getSize();
         int[] newRow = new int[size];
         int j = 0;
+
+        //Przesuwa niezerowe wartości na lewą stonę
         for (int i = 0; i < size; i++) {
             if (row[i] != 0) {
                 newRow[j++] = row[i];
             }
         }
 
+        //Łączy identyczne wartości
         for (int i = 0; i < size - 1; i++) {
             if (newRow[i] != 0 && newRow[i] == newRow[i + 1]) {
                 newRow[i] *= 2;
@@ -267,10 +342,9 @@ class Game2048 {
 
     // Przetwarza ruch w prawo
     public int[] processRightMove(int[] row) {
-        int size = Settings.getSize();
-        int[] newRow = reverseArray(row);
-        newRow = processLeftMove(newRow);
-        return reverseArray(newRow);
+        int[] newRow = reverseArray(row); // Odwraca wiersz, aby zamienić ruch w prawo na ruch w lewo
+        newRow = processLeftMove(newRow); // Przetwarza odwrócony wiersz jak dla ruchu w lewo
+        return reverseArray(newRow); // Ponownie odwraca wiersz, aby przywrócić oryginalny porządek
     }
 
     // Przetwarza ruch gracza
@@ -279,14 +353,14 @@ class Game2048 {
         switch (move) {
             case MOVE_LEFT:
                 for (int i = 0; i < size; i++) {
-                    int[] newRow = processLeftMove(board[i]);
-                    System.arraycopy(newRow, 0, board[i], 0, size);
+                    int[] newRow = processLeftMove(board[i]); // Przetwarza ruch w lewo dla każdego wiersza
+                    System.arraycopy(newRow, 0, board[i], 0, size); // Kopiuje przetworzony wiersz z powrotem na planszę
                 }
                 break;
             case MOVE_RIGHT:
                 for (int i = 0; i < size; i++) {
-                    int[] newRow = processRightMove(board[i]);
-                    System.arraycopy(newRow, 0, board[i], 0, size);
+                    int[] newRow = processRightMove(board[i]); // Przetwarza ruch w prawo dla każdego wiersza
+                    System.arraycopy(newRow, 0, board[i], 0, size); // Kopiuje przetworzony wiersz z powrotem na planszę
                 }
                 break;
             case MOVE_UP:
@@ -295,9 +369,9 @@ class Game2048 {
                     for (int i = 0; i < size; i++) {
                         row[i] = board[i][j];
                     }
-                    int[] newRow = processLeftMove(row);
+                    int[] newRow = processLeftMove(row); // Przetwarza ruch w górę dla każdej kolumny
                     for (int i = 0; i < size; i++) {
-                        board[i][j] = newRow[i];
+                        board[i][j] = newRow[i]; // Kopiuje przetworzoną kolumnę z powrotem na planszę
                     }
                 }
                 break;
@@ -307,14 +381,15 @@ class Game2048 {
                     for (int i = 0; i < size; i++) {
                         row[i] = board[i][j];
                     }
-                    int[] newRow = processRightMove(row);
+                    int[] newRow = processRightMove(row); // Przetwarza ruch w dół dla każdej kolumny
                     for (int i = 0; i < size; i++) {
-                        board[i][j] = newRow[i];
+                        board[i][j] = newRow[i]; // Kopiuje przetworzoną kolumnę z powrotem na planszę
                     }
                 }
                 break;
         }
     }
+
 
     // Główna metoda gry
     public void play() {
@@ -337,6 +412,7 @@ class Game2048 {
         showBoard();
         if (gameWon()) {
             System.out.println("WYGRAŁEŚ!");
+
         } else {
             System.out.println("PRZEGRAŁEŚ!");
         }
@@ -345,14 +421,15 @@ class Game2048 {
         leaderBoard.addEntry(playerName, score);
         leaderBoard.display();
 
-        System.out.println("Czy chcesz ponownie rozpocząć grę z nowym użytkownikiem: Yes/No");
-        if (scanner.nextLine().equalsIgnoreCase("Yes")) {
+        System.out.println("Czy chcesz ponownie rozpocząć grę z nowym użytkownikiem: (Y)es/(N)o");
+        if (scanner.nextLine().equalsIgnoreCase("Y")) {
             resetGame();
-            Settings newSettings = getNewUserSettings();
-            playerName = newSettings.getPlayerName();
+            getNewUserSettings();
+            playerName = Settings.getPlayerName();
             play();
         }
     }
+
 
     // Resetuje grę do stanu początkowego
     private void resetGame() {
@@ -366,7 +443,7 @@ class Game2048 {
     }
 
     // Pobiera nowe ustawienia od użytkownika
-    private Settings getNewUserSettings() {
+    private void getNewUserSettings() {
         System.out.println("Podaj nazwę użytkownika: ");
         String newUserName = scanner.nextLine();
         System.out.println("Podaj wielkość planszy: ");
@@ -375,37 +452,52 @@ class Game2048 {
             System.out.println("Rozmiar planszy musi być większy niż 1. Podaj ponownie: ");
             size = scanner.nextInt();
         }
-        System.out.println("Podaj wartość nr1: ");
+        System.out.println("Podaj wartość kafelka NR1: ");
         int value1 = scanner.nextInt();
-        System.out.println("Podaj wartość nr2: ");
+        System.out.println("Podaj wartość kafelka NR2: ");
         int value2 = scanner.nextInt();
 
-        scanner.nextLine(); // Konsumuje pozostały znak nowej linii
+        scanner.nextLine();
 
-        return new Settings(size, value1, value2, newUserName);
+        new Settings(size, value1, value2, newUserName);
     }
 
     // Metoda główna programu
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
-        System.out.println("Podaj nazwę użytkownika: ");
-        String username = sc.nextLine();
-        System.out.println("Podaj wielkość planszy: ");
-        int size = sc.nextInt();
-        while (size <= 1) {
-            System.out.println("Rozmiar planszy musi być większy niż 1. Podaj ponownie: ");
-            size = sc.nextInt();
-        }
-        System.out.println("Podaj wartość nr1: ");
-        int value1 = sc.nextInt();
-        System.out.println("Podaj wartość nr2: ");
-        int value2 = sc.nextInt();
-
-        sc.nextLine(); // Konsumuje pozostały znak nowej linii
-
-        Settings gameSettings = new Settings(size, value1, value2, username);
         LeaderBoard leaderBoard = new LeaderBoard();
-        Game2048 gameOf2048 = new Game2048(gameSettings, leaderBoard);
-        gameOf2048.play();
+
+        System.out.println("(N)owa gra czy (Z)aladowac grę z pliku?");
+        String choice = sc.nextLine();
+
+        if (choice.equalsIgnoreCase("Z")) {
+            System.out.print("Podaj nazwe pliku: ");
+            String filename = sc.nextLine();
+            Game2048 gameOf2048 = new Game2048(new Settings(4, 2, 4, ""), leaderBoard); // temporary settings
+            gameOf2048.loadGame(filename);
+            gameOf2048.play();
+        } else {
+            System.out.println("Podaj nazwę użytkownika: ");
+            String username = sc.nextLine();
+            System.out.println("Podaj wielkość planszy: ");
+            int size = sc.nextInt();
+            while (size <= 1) {
+                System.out.println("Rozmiar planszy musi być większy niż 1. Podaj ponownie: ");
+                size = sc.nextInt();
+            }
+            System.out.println("Podaj wartość nr1: ");
+            int value1 = sc.nextInt();
+            System.out.println("Podaj wartość nr2: ");
+            int value2 = sc.nextInt();
+
+            Settings gameSettings = new Settings(size, value1, value2, username);
+            Game2048 gameOf2048 = new Game2048(gameSettings, leaderBoard);
+            String filePath =
+                    "/Users/aleks277/Downloads/ocean-breeze-beat-by-jtwayne-213318.wav";
+            Player play = new Player();
+            play.playMusic(filePath);
+            gameOf2048.play();
+        }
     }
 }
+

@@ -7,3 +7,7 @@ który czyścił by konsolę jednak bez skutków.
 Duza zmiana kodu ze względu na implementacje leaderboard'a. Nie ukrywam na tym etapie musiałem wspomagać się trochę ChatemGPT.
 Użytkownik ma możliwość zrestartowania gry po jej zakończeniu. Automatyczne zapisywanie wyników do leaderboarda. Jestem 
 zadowolony z kodu oraz implementacji.
+
+11.06.2024 - 15.06.2024
+Dodanie funkcji zapisu gry do pliku / wczytania gry z pliku. Poprawki kosmetyczne w kodzie gry. Dodana również muzyka która gra w tle
+(to dla zabawy). 
